@@ -1,15 +1,18 @@
+import os
+from dotenv import load_dotenv
 import csv
 import re
 import psycopg2
 
 # --- Connection ---
-# Adjust these to match your pgAdmin setup. Default Postgres port is 5432.
+load_dotenv()  # read DB credentials from .env file
+
 conn = psycopg2.connect(
-    dbname="filmapp",
-    user="postgres",
-    password="YOUR_PASSWORD",   # the password you set when installing Postgres
-    host="localhost",
-    port="5432",
+    dbname=os.getenv("DB_NAME"),
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    host=os.getenv("DB_HOST"),
+    port=os.getenv("DB_PORT")
 )
 cur = conn.cursor()
 
