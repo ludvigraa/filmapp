@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Recent Movies — FilmApp{% endblock %}
+
+{% block content %}
+    <h1>Recent Movies</h1>
+    <ul>
+        {% for movie in movies %}
+            <li>
+                <a href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">
+                    {{ movie.title }}
+                </a>
+                ({{ movie.year }})
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

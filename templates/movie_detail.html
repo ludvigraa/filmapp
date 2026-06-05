@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}{{ movie.title }} — FilmApp{% endblock %}
+
+{% block content %}
+    <h1>{{ movie.title }}{% if movie.year %} ({{ movie.year }}){% endif %}</h1>
+
+    {% if genres %}
+        <p>
+            <strong>Genres:</strong>
+            {{ genres | join(", ") }}
+        </p>
+    {% endif %}
+
+    <p>
+        <strong>Rating:</strong>
+        {% if stats.rating_count > 0 %}
+            {{ stats.avg_score }} / 5
+            <span>({{ stats.rating_count }} ratings)</span>
+        {% else %}
+            No ratings yet
+        {% endif %}
+    </p>
+
+    <section>
+        <h2>Your rating</h2>
+        {% if current_user %}
+            <form method="post" action="{{ url_for('rate_movie', movie_id=movie.movie_id) }}">
+                <label>
+                    Rate this film:
+                    <select name="score" required>
+                        <option value="">--</option>
+                        {% for s in [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0] %}
+                            <option value="{{ s }}" {% if user_rating == s %}selected{% endif %}>
+                                {{ s }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button type="submit">
+                    {% if user_rating %}Update rating{% else %}Submit{% endif %}
+                </button>
+            </form>
+            {% if user_rating %}
+                <p>You rated this {{ user_rating }} / 5.</p>
+            {% endif %}
+        {% else %}
+            <p><a href="{{ url_for('login') }}">Log in</a> to rate this film.</p>
+        {% endif %}
+    </section>
+
+    {% if movie.imdb_id %}
+        <p>
+            <a href="https://www.imdb.com/title/tt{{ movie.imdb_id }}/" target="_blank">
+                View on IMDb
+            </a>
+        </p>
+    {% endif %}
+
+    <p><a href="{{ url_for('index') }}">← Back to home</a></p>
+{% endblock %}

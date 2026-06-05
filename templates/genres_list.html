@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Genres — FilmApp{% endblock %}
+
+{% block content %}
+    <h1>Browse by Genre</h1>
+    <ul>
+        {% for genre in genres %}
+            <li>
+                <a href="{{ url_for('genre_detail', genre_id=genre.genre_id) }}">
+                    {{ genre.genre_name }}
+                </a>
+                <span>({{ genre.movie_count }})</span>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

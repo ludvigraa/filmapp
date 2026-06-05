@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}{{ genre.genre_name }} — FilmApp{% endblock %}
+
+{% block content %}
+    <h1>{{ genre.genre_name }}</h1>
+
+    {% if movies %}
+        <p>{{ movies | length }} film{{ '' if movies | length == 1 else 's' }} shown</p>
+        <ul>
+            {% for movie in movies %}
+                <li>
+                    <a href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">
+                        {{ movie.title }}
+                    </a>
+                    {% if movie.year %}({{ movie.year }}){% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No films in this genre.</p>
+    {% endif %}
+
+    <p><a href="{{ url_for('genres_list') }}">← All genres</a></p>
+{% endblock %}
