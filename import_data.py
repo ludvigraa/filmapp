@@ -60,7 +60,7 @@ def import_movies(genre_ids):
         reader = csv.DictReader(f)
         for row in reader:
             movie_id = int(row["movieId"])
-            raw_title = row["title"]
+            raw_title = row["title"].strip()
 
             match = TITLE_YEAR.match(raw_title)
             if match:
