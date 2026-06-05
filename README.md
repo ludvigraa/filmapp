@@ -205,10 +205,6 @@ Each feature follows the same pattern:
 
 `debug=True` in `app.py` auto-reloads on file changes, but syntax errors crash the reload. Restart manually with `python app.py` if changes don't take effect.
 
-## Group members and responsibilities
-
-[Fill in based on your group's actual division of labor.]
-
 ## Course
 
 NDAB18004U — Databases and Information Systems  
