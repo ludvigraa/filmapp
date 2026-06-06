@@ -49,6 +49,43 @@
         {% endif %}
     </section>
 
+    <section>
+        <h2>Your review</h2>
+        {% if current_user %}
+            <form method="post" action="{{ url_for('review_movie', movie_id=movie.movie_id) }}">
+                <p>
+                    <textarea name="text" rows="5" cols="60" maxlength="5000" required
+                            placeholder="What did you think?">{{ user_review or '' }}</textarea>
+                </p>
+                <button type="submit">
+                    {% if user_review %}Update review{% else %}Post review{% endif %}
+                </button>
+            </form>
+        {% else %}
+            <p><a href="{{ url_for('login') }}">Log in</a> to write a review.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2>Reviews</h2>
+        {% if reviews %}
+            {% for review in reviews %}
+                <article>
+                    <p>
+                        <strong>{{ review.username }}</strong>
+                        {% if review.score %}
+                            — rated {{ review.score }} / 5
+                        {% endif %}
+                        <span>· {{ review.posted_at.strftime('%Y-%m-%d') }}</span>
+                    </p>
+                    <p>{{ review.text }}</p>
+                </article>
+            {% endfor %}
+        {% else %}
+            <p>No reviews yet.</p>
+        {% endif %}
+    </section>
+
     {% if movie.imdb_id %}
         <p>
             <a href="https://www.imdb.com/title/tt{{ movie.imdb_id }}/" target="_blank">

@@ -111,6 +111,28 @@ def movie_detail(movie_id):
         if row is not None:
             user_rating = float(row["score"])
     
+    # Query 5: user's own review (for pre-populating the form)
+    user_review = None
+    if user is not None:
+        cur.execute(
+            "SELECT text FROM reviews WHERE user_id = %s AND movie_id = %s;",
+            (user["user_id"], movie_id),
+        )
+        row = cur.fetchone()
+        if row is not None:
+            user_review = row["text"]
+
+    # Query 6: all reviews on this movie, with reviewer info and their rating
+    cur.execute("""
+        SELECT u.user_id, u.username, r.text, r.posted_at, rt.score
+        FROM reviews r
+        JOIN users u ON u.user_id = r.user_id
+        LEFT JOIN ratings rt ON rt.user_id = r.user_id AND rt.movie_id = r.movie_id
+        WHERE r.movie_id = %s
+        ORDER BY r.posted_at DESC;
+    """, (movie_id,))
+    reviews = cur.fetchall()    
+
     cur.close()
     conn.close()
 
@@ -120,6 +142,8 @@ def movie_detail(movie_id):
         genres=genres,
         stats=stats,
         user_rating=user_rating,
+        user_review=user_review,
+        reviews=reviews
     )
 
 @app.route("/search")
@@ -319,6 +343,46 @@ def rate_movie(movie_id):
     conn.close()
 
     flash(f"Rated {score} / 5", "success")
+    return redirect(url_for("movie_detail", movie_id=movie_id))
+
+@app.route("/movies/<int:movie_id>/review", methods=["POST"])
+def review_movie(movie_id):
+    user = current_user()
+    if user is None:
+        flash("Please log in to write a review.", "error")
+        return redirect(url_for("login"))
+
+    text = request.form.get("text", "").strip()
+
+    if not text:
+        flash("Review cannot be empty.", "error")
+        return redirect(url_for("movie_detail", movie_id=movie_id))
+
+    if len(text) > 5000:
+        flash("Review is too long (max 5000 characters).", "error")
+        return redirect(url_for("movie_detail", movie_id=movie_id))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Confirm the movie exists
+    cur.execute("SELECT 1 FROM movies WHERE movie_id = %s;", (movie_id,))
+    if cur.fetchone() is None:
+        cur.close()
+        conn.close()
+        abort(404)
+
+    cur.execute("""
+        INSERT INTO reviews (user_id, movie_id, text, posted_at)
+        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id, movie_id)
+        DO UPDATE SET text = EXCLUDED.text, posted_at = EXCLUDED.posted_at;
+    """, (user["user_id"], movie_id, text))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Review posted.", "success")
     return redirect(url_for("movie_detail", movie_id=movie_id))
 
 if __name__ == "__main__":
