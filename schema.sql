@@ -16,7 +16,7 @@ CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR (255) UNIQUE,
-    password_hash VARCHAR(255)
+    password_hash VARCHAR(255),
     is_seeded BOOLEAN NOT NULL DEFAULT FALSE
 );
 
@@ -63,4 +63,4 @@ CREATE TABLE watchlist_movies (
     movie_id INTEGER NOT NULL REFERENCES movies(movie_id) ON DELETE CASCADE,
     added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (watchlist_id, movie_id)
-);
+)

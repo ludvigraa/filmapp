@@ -131,7 +131,27 @@ def movie_detail(movie_id):
         WHERE r.movie_id = %s
         ORDER BY r.posted_at DESC;
     """, (movie_id,))
-    reviews = cur.fetchall()    
+    reviews = cur.fetchall()   
+    
+    # Query 7: current user's watchlists
+    watchlists = []
+    if user is not None:
+        cur.execute("""
+        SELECT 
+            w.watchlist_id,
+            w.name,
+            CASE 
+                WHEN wm.movie_id IS NULL THEN FALSE
+                ELSE TRUE
+            END AS contains_movie
+        FROM watchlists w
+        LEFT JOIN watchlist_movies wm
+            ON wm.watchlist_id = w.watchlist_id
+           AND wm.movie_id = %s
+        WHERE w.user_id = %s
+        ORDER BY w.name;
+        """, (movie_id, user["user_id"]))
+        watchlists = cur.fetchall() 
 
     cur.close()
     conn.close()
@@ -143,7 +163,8 @@ def movie_detail(movie_id):
         stats=stats,
         user_rating=user_rating,
         user_review=user_review,
-        reviews=reviews
+        reviews=reviews,
+        watchlists=watchlists
     )
 
 @app.route("/search")
@@ -258,6 +279,13 @@ def signup():
         RETURNING user_id;
     """, (username, email, password_hash))
     new_user_id = cur.fetchone()["user_id"]
+
+    # Create a default watchlist for the new user
+    cur.execute("""
+        INSERT INTO watchlists (user_id, name)
+        VALUES (%s, %s);
+    """, (new_user_id, "Watch later"))
+
     conn.commit()
     cur.close()
     conn.close()
@@ -304,6 +332,221 @@ def logout():
     session.clear()
     flash("Logged out.", "success")
     return redirect(url_for("index"))
+
+@app.route("/profile")
+def profile():
+    user = current_user()
+    if user is None:
+        flash("Please log in to view your profile.", "error")
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # User's ratings
+    cur.execute("""
+        SELECT m.movie_id, m.title, m.year, r.score, r.rated_at
+        FROM ratings r
+        JOIN movies m ON m.movie_id = r.movie_id
+        WHERE r.user_id = %s
+        ORDER BY r.rated_at DESC;
+    """, (user["user_id"],))
+    ratings = cur.fetchall()
+
+    # User's reviews
+    cur.execute("""
+        SELECT m.movie_id, m.title, m.year, rv.text, rv.posted_at
+        FROM reviews rv
+        JOIN movies m ON m.movie_id = rv.movie_id
+        WHERE rv.user_id = %s
+        ORDER BY rv.posted_at DESC;
+    """, (user["user_id"],))
+    reviews = cur.fetchall()
+
+    # User's watchlists
+    cur.execute("""
+        SELECT 
+            w.watchlist_id,
+            w.name,
+            COUNT(wm.movie_id) AS movie_count
+        FROM watchlists w
+        LEFT JOIN watchlist_movies wm ON wm.watchlist_id = w.watchlist_id
+        WHERE w.user_id = %s
+        GROUP BY w.watchlist_id, w.name
+        ORDER BY w.watchlist_id;
+    """, (user["user_id"],))
+    watchlists = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "profile.html",
+        user=user,
+        ratings=ratings,
+        reviews=reviews,
+        watchlists=watchlists
+    )
+
+@app.route("/watchlists/create", methods=["POST"])
+def create_watchlist():
+    user = current_user()
+    if user is None:
+        flash("Please log in to create a watchlist.", "error")
+        return redirect(url_for("login"))
+
+    name = request.form.get("name", "").strip()
+
+    if not name:
+        flash("Watchlist name cannot be empty.", "error")
+        return redirect(url_for("profile"))
+
+    if len(name) > 100:
+        flash("Watchlist name is too long.", "error")
+        return redirect(url_for("profile"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO watchlists (user_id, name)
+        VALUES (%s, %s)
+        RETURNING watchlist_id;
+    """, (user["user_id"], name))
+
+    watchlist_id = cur.fetchone()["watchlist_id"]
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Watchlist created.", "success")
+    return redirect(url_for("watchlist_detail", watchlist_id=watchlist_id))
+
+@app.route("/watchlists/<int:watchlist_id>")
+def watchlist_detail(watchlist_id):
+    user = current_user()
+    if user is None:
+        flash("Please log in to view watchlists.", "error")
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Get the watchlist, but only if it belongs to the logged-in user
+    cur.execute("""
+        SELECT watchlist_id, name
+        FROM watchlists
+        WHERE watchlist_id = %s AND user_id = %s;
+    """, (watchlist_id, user["user_id"]))
+    watchlist = cur.fetchone()
+
+    if watchlist is None:
+        cur.close()
+        conn.close()
+        abort(404)
+
+    # Get movies in the watchlist
+    cur.execute("""
+        SELECT m.movie_id, m.title, m.year
+        FROM watchlist_movies wm
+        JOIN movies m ON m.movie_id = wm.movie_id
+        WHERE wm.watchlist_id = %s
+        ORDER BY m.title;
+    """, (watchlist_id,))
+    movies = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "watchlist_detail.html",
+        watchlist=watchlist,
+        movies=movies
+    )
+
+
+@app.route("/movies/<int:movie_id>/watchlist", methods=["POST"])
+def add_to_watchlist(movie_id):
+    user = current_user()
+    if user is None:
+        flash("Please log in to use watchlists.", "error")
+        return redirect(url_for("login"))
+
+    watchlist_id = request.form.get("watchlist_id")
+
+    if not watchlist_id:
+        flash("Please choose a watchlist.", "error")
+        return redirect(url_for("movie_detail", movie_id=movie_id))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Check that the movie exists
+    cur.execute("SELECT 1 FROM movies WHERE movie_id = %s;", (movie_id,))
+    if cur.fetchone() is None:
+        cur.close()
+        conn.close()
+        abort(404)
+
+    # Check that the watchlist belongs to the logged-in user
+    cur.execute("""
+        SELECT 1
+        FROM watchlists
+        WHERE watchlist_id = %s AND user_id = %s;
+    """, (watchlist_id, user["user_id"]))
+    if cur.fetchone() is None:
+        cur.close()
+        conn.close()
+        abort(404)
+
+    # Add movie. ON CONFLICT prevents duplicate additions.
+    cur.execute("""
+        INSERT INTO watchlist_movies (watchlist_id, movie_id)
+        VALUES (%s, %s)
+        ON CONFLICT (watchlist_id, movie_id) DO NOTHING;
+    """, (watchlist_id, movie_id))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Movie added to watchlist.", "success")
+    return redirect(url_for("movie_detail", movie_id=movie_id))
+
+
+@app.route("/watchlists/<int:watchlist_id>/remove/<int:movie_id>", methods=["POST"])
+def remove_from_watchlist(watchlist_id, movie_id):
+    user = current_user()
+    if user is None:
+        flash("Please log in to use watchlists.", "error")
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Only allow removing from your own watchlist
+    cur.execute("""
+        SELECT 1
+        FROM watchlists
+        WHERE watchlist_id = %s AND user_id = %s;
+    """, (watchlist_id, user["user_id"]))
+    if cur.fetchone() is None:
+        cur.close()
+        conn.close()
+        abort(404)
+
+    cur.execute("""
+        DELETE FROM watchlist_movies
+        WHERE watchlist_id = %s AND movie_id = %s;
+    """, (watchlist_id, movie_id))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Movie removed from watchlist.", "success")
+    return redirect(url_for("watchlist_detail", watchlist_id=watchlist_id))
 
 @app.route("/movies/<int:movie_id>/rate", methods=["POST"])
 def rate_movie(movie_id):

@@ -95,4 +95,40 @@
     {% endif %}
 
     <p><a href="{{ url_for('index') }}">← Back to home</a></p>
+
+    {% if current_user %}
+    <section>
+        <h2>Watchlists</h2>
+
+    {% if watchlists %}
+        <ul>
+            {% for watchlist in watchlists %}
+                <li>
+                    <a href="{{ url_for('watchlist_detail', watchlist_id=watchlist.watchlist_id) }}">
+                        <strong>{{ watchlist.name }}</strong>
+                    </a>
+
+                    {% if watchlist.contains_movie %}
+                        — Already added
+                    {% else %}
+                        <form method="post"
+                              action="{{ url_for('add_to_watchlist', movie_id=movie.movie_id) }}"
+                              style="display:inline;">
+                            <input type="hidden" name="watchlist_id" value="{{ watchlist.watchlist_id }}">
+                            <button type="submit">Add</button>
+                        </form>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>You do not have a watchlist yet.</p>
+
+        <form method="post" action="{{ url_for('create_watchlist') }}">
+            <input type="text" name="name" placeholder="New watchlist name" required>
+            <button type="submit">Create watchlist</button>
+        </form>
+    {% endif %}
+    </section>
+    {% endif %}
 {% endblock %}

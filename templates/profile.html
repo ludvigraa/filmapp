@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>{{ user.username }}'s profile</h1>
+
+<section>
+    <h2>Your ratings</h2>
+
+    {% if ratings %}
+        <ul>
+            {% for rating in ratings %}
+                <li>
+                    <a href="{{ url_for('movie_detail', movie_id=rating.movie_id) }}">
+                        {{ rating.title }}{% if rating.year %} ({{ rating.year }}){% endif %}
+                    </a>
+                    — {{ rating.score }}/5
+                    {% if rating.rated_at %}
+                        <small>rated {{ rating.rated_at }}</small>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>You have not rated any films yet.</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Your reviews</h2>
+
+    {% if reviews %}
+        <ul>
+            {% for review in reviews %}
+                <li>
+                    <a href="{{ url_for('movie_detail', movie_id=review.movie_id) }}">
+                        {{ review.title }}{% if review.year %} ({{ review.year }}){% endif %}
+                    </a>
+                    <p>{{ review.text }}</p>
+                    {% if review.posted_at %}
+                        <small>posted {{ review.posted_at }}</small>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>You have not written any reviews yet.</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Your watchlists</h2>
+
+    {% if watchlists %}
+        <ul>
+            {% for watchlist in watchlists %}
+                <li>
+                    <a href="{{ url_for('watchlist_detail', watchlist_id=watchlist.watchlist_id) }}">
+                        {{ watchlist.name }}
+                    </a>
+                    — {{ watchlist.movie_count }} films
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>You do not have any watchlists yet.</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('create_watchlist') }}">
+        <input type="text" name="name" placeholder="New watchlist name" required>
+        <button type="submit">Create watchlist</button>
+    </form>
+</section>
+{% endblock %}
