@@ -1,6 +1,6 @@
 # FilmApp
 
-A film-tracking web application built for the Databases and Information Systems course at the University of Copenhagen. Users can browse films, search, view detailed film pages with ratings and genres, and (once logged in) rate films on a half-star scale.
+A Letterboxd-inspired film-tracking web application built for the Databases and Information Systems course at the University of Copenhagen. Users can browse films, search, rate, review, and manage personal watchlists.
 
 Inspired by Letterboxd, backed by the MovieLens small dataset (~100k ratings, ~10k films, 610 seeded users).
 
@@ -19,13 +19,15 @@ This project was developed with assistance from Claude (Anthropic) for guidance 
 
 ## Features
 
-- Browse recent films on the homepage
-- Film detail pages showing title, year, genres, IMDb link, average rating, and rating count
-- Full-text search across film titles, using PostgreSQL regex (`~*`) with multi-word positive-lookahead support
-- Genre browse with film counts per genre
-- User signup, login, and logout with hashed passwords (Werkzeug `scrypt`)
-- Rate films on a half-star scale (0.5–5.0), with one rating per user-film pair (enforced by composite primary key)
-- Re-rating overwrites the previous rating using PostgreSQL `INSERT ... ON CONFLICT DO UPDATE`
+- **Homepage** — top-rated films, most-rated films, recent reviews, genre cloud, and (when logged in) a personal watchlist teaser
+- **Film detail pages** — title, year, genres, IMDb link, average rating, rating count, and all user reviews
+- **Full-text search** across film titles using PostgreSQL regex (`~*`) with multi-word positive-lookahead support
+- **Genre browse** — all genres ordered by film count, each linking to a full film listing
+- **User accounts** — signup, login, and logout with hashed passwords (Werkzeug `scrypt`)
+- **Ratings** — rate films on a half-star scale (0.5–5.0); one rating per user-film pair enforced by composite primary key; re-rating uses `INSERT ... ON CONFLICT DO UPDATE`
+- **Reviews** — write a text review on any film; one review per user-film pair, updatable
+- **Watchlists** — create named watchlists, add or remove films, view watchlist contents
+- **User profile** — overview of all your ratings, reviews, and watchlists; accessible from the nav by clicking your username
 
 ## Setup
 
@@ -137,11 +139,13 @@ filmapp/
 ├── ml-latest-small/         # MovieLens CSVs (movies, ratings, links, tags)
 ├── templates/               # Jinja2 templates
 │   ├── base.html            # Base template with nav, footer, flash messages
-│   ├── index.html           # Homepage (recent films)
-│   ├── movie_detail.html    # Film detail page with rating form
+│   ├── index.html           # Homepage (top rated, most rated, recent reviews, genre cloud, watchlist teaser)
+│   ├── movie_detail.html    # Film detail page with rating and review forms
 │   ├── search.html          # Search results
 │   ├── genres_list.html     # Genre index
 │   ├── genre_detail.html    # Films in a genre
+│   ├── profile.html         # User profile (ratings, reviews, watchlists)
+│   ├── watchlist_detail.html # Watchlist contents
 │   ├── signup.html          # Signup form
 │   └── login.html           # Login form
 ├── app.py                   # Flask application (routes + queries)
