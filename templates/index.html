@@ -1,17 +1,79 @@
 {% extends "base.html" %}
 
-{% block title %}Recent Movies — FilmApp{% endblock %}
+{% block title %}FilmApp{% endblock %}
 
 {% block content %}
-    <h1>Recent Movies</h1>
-    <ul>
-        {% for movie in movies %}
+
+{% if current_user %}
+<section>
+    <h2>Your Watchlists</h2>
+    {% if watchlists %}
+        <ul>
+            {% for wl in watchlists %}
             <li>
-                <a href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">
-                    {{ movie.title }}
-                </a>
-                ({{ movie.year }})
+                <a href="{{ url_for('watchlist_detail', watchlist_id=wl.watchlist_id) }}">{{ wl.name }}</a>
+                — {{ wl.movie_count }} film{% if wl.movie_count != 1 %}s{% endif %}
+                {% if wl.preview_titles %}
+                    ({{ wl.preview_titles | join(', ') }}{% if wl.movie_count > 3 %}, …{% endif %})
+                {% else %}
+                    (empty)
+                {% endif %}
             </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>You have no watchlists yet. <a href="{{ url_for('profile') }}">Go to your profile</a> to create one.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+<section>
+    <h2>Top Rated Films</h2>
+    <ol>
+        {% for movie in top_rated %}
+        <li>
+            <a href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a>
+            {% if movie.year %}({{ movie.year }}){% endif %}
+            — ★ {{ movie.avg_score }} ({{ movie.rating_count }} ratings)
+        </li>
+        {% endfor %}
+    </ol>
+</section>
+
+<section>
+    <h2>Most Rated Films</h2>
+    <ol>
+        {% for movie in most_rated %}
+        <li>
+            <a href="{{ url_for('movie_detail', movie_id=movie.movie_id) }}">{{ movie.title }}</a>
+            {% if movie.year %}({{ movie.year }}){% endif %}
+            — {{ movie.rating_count }} ratings
+        </li>
+        {% endfor %}
+    </ol>
+</section>
+
+<section>
+    <h2>Recently Reviewed</h2>
+    <ul>
+        {% for review in recent_reviews %}
+        <li>
+            <strong>{{ review.username }}</strong> on
+            <a href="{{ url_for('movie_detail', movie_id=review.movie_id) }}">{{ review.title }}</a>
+            <em>({{ review.posted_at.strftime('%Y-%m-%d') }})</em><br>
+            {{ review.text[:150] }}{% if review.text | length > 150 %}…{% endif %}
+        </li>
         {% endfor %}
     </ul>
+</section>
+
+<section>
+    <h2>Browse by Genre</h2>
+    <p>
+        {% for genre in genres %}
+            <a href="{{ url_for('genre_detail', genre_id=genre.genre_id) }}">{{ genre.genre_name }}</a>{% if not loop.last %} &middot; {% endif %}
+        {% endfor %}
+    </p>
+</section>
+
 {% endblock %}

@@ -8,7 +8,6 @@
 <body>
     <nav>
         <a href="{{ url_for('index') }}">Home</a>
-        <a href="{{ url_for('genres_list') }}">Genres</a>
         <form method="get" action="{{ url_for('search') }}" style="display: inline;">
             <input type="text" name="q" placeholder="Search films...">
             <button type="submit">Search</button>

@@ -46,20 +46,89 @@ def inject_user():
 
 @app.route("/")
 def index():
+    user = current_user()
     conn = get_db_connection()
     cur = conn.cursor()
+
+    # Watchlists teaser (logged-in users only)
+    watchlists = []
+    if user is not None:
+        cur.execute("""
+            SELECT w.watchlist_id, w.name, COUNT(wm.movie_id) AS movie_count
+            FROM watchlists w
+            LEFT JOIN watchlist_movies wm ON wm.watchlist_id = w.watchlist_id
+            WHERE w.user_id = %s
+            GROUP BY w.watchlist_id, w.name, w.created_at
+            ORDER BY w.created_at DESC
+            LIMIT 5;
+        """, (user["user_id"],))
+        for wl in cur.fetchall():
+            cur.execute("""
+                SELECT m.title
+                FROM watchlist_movies wm
+                JOIN movies m ON m.movie_id = wm.movie_id
+                WHERE wm.watchlist_id = %s
+                LIMIT 3;
+            """, (wl["watchlist_id"],))
+            titles = [r["title"] for r in cur.fetchall()]
+            watchlists.append({**wl, "preview_titles": titles})
+
+    # Top rated films (min 50 ratings)
     cur.execute("""
-        SELECT movie_id, title, year
-        FROM movies
-        WHERE year IS NOT NULL
-        ORDER BY year DESC, title
-        LIMIT 20;
+        SELECT m.movie_id, m.title, m.year,
+               ROUND(AVG(r.score), 2) AS avg_score,
+               COUNT(*) AS rating_count
+        FROM movies m
+        JOIN ratings r ON r.movie_id = m.movie_id
+        GROUP BY m.movie_id, m.title, m.year
+        HAVING COUNT(*) >= 50
+        ORDER BY avg_score DESC
+        LIMIT 10;
     """)
-    movies = cur.fetchall()
+    top_rated = cur.fetchall()
+
+    # Most rated films
+    cur.execute("""
+        SELECT m.movie_id, m.title, m.year, COUNT(*) AS rating_count
+        FROM movies m
+        JOIN ratings r ON r.movie_id = m.movie_id
+        GROUP BY m.movie_id, m.title, m.year
+        ORDER BY rating_count DESC
+        LIMIT 10;
+    """)
+    most_rated = cur.fetchall()
+
+    # Recently reviewed
+    cur.execute("""
+        SELECT u.username, m.movie_id, m.title, rv.text, rv.posted_at
+        FROM reviews rv
+        JOIN users u ON u.user_id = rv.user_id
+        JOIN movies m ON m.movie_id = rv.movie_id
+        ORDER BY rv.posted_at DESC
+        LIMIT 5;
+    """)
+    recent_reviews = cur.fetchall()
+
+    # Genre cloud ordered by movie count
+    cur.execute("""
+        SELECT g.genre_id, g.genre_name, COUNT(mg.movie_id) AS movie_count
+        FROM genres g
+        LEFT JOIN movie_genres mg ON mg.genre_id = g.genre_id
+        GROUP BY g.genre_id, g.genre_name
+        ORDER BY movie_count DESC;
+    """)
+    genres = cur.fetchall()
+
     cur.close()
     conn.close()
 
-    return render_template("index.html", movies=movies)
+    return render_template("index.html",
+        watchlists=watchlists,
+        top_rated=top_rated,
+        most_rated=most_rated,
+        recent_reviews=recent_reviews,
+        genres=genres,
+    )
 
 @app.route("/movies/<int:movie_id>")
 def movie_detail(movie_id):
